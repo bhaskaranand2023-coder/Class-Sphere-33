@@ -1,0 +1,415 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>ClassSphere — One School. Every Classroom. One Connected Platform.</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script crossorigin src="https://unpkg.com/react@18/umd/react.production.min.js"></script>
+  <script crossorigin src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js"></script>
+  <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
+  <style>
+    @import url('https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap');
+    body { font-family: 'Plus Jakarta Sans', sans-serif; background-color: #f8fafc; }
+  </style>
+</head>
+<body>
+  <div id="root"></div>
+
+  <script type="text/babel">
+    const { useState, useEffect } = React;
+
+    // --- DEMO ACCOUNTS ---
+    const ACCOUNTS = [
+      { id: "student5a", password: "demo123", name: "Aarav Sharma", role: "student", classes: ["5A"], label: "Class 5A Student" },
+      { id: "student5b", password: "demo123", name: "Ananya Verma", role: "student", classes: ["5B"], label: "Class 5B Student" },
+      { id: "student12a", password: "demo123", name: "Rohan Kumar", role: "student", classes: ["12A"], label: "Class 12A Student" },
+      { id: "teacher5a", password: "demo123", name: "Priya Sharma", role: "teacher", classes: ["5A"], label: "Class Teacher (5A)" },
+      { id: "teacher", password: "demo123", name: "Rahul Mehta", role: "teacher", classes: ["5B", "12A"], label: "Subject Teacher (5B, 12A)" },
+    ];
+
+    const ALL_CLASSES = ["5A", "5B", "12A"];
+
+    // --- INITIAL SAMPLE DATA ---
+    const INITIAL_NOTICES = [
+      { id: 1, classId: "5A", title: "Mathematics Unit Test", desc: "Unit test on Fractions scheduled for 12 November.", teacher: "Priya Sharma", category: "Examination", priority: "Important", date: "10 Nov" },
+      { id: 2, classId: "5A", title: "Science Project Deadline", desc: "Submit your illustrated 'Our Environment' project by 15 November.", teacher: "Priya Sharma", category: "Academic Update", priority: "Normal", date: "09 Nov" },
+      { id: 3, classId: "5B", title: "English Reading Activity", desc: "Bring your literature reader for the group reading session on 13 November.", teacher: "Rahul Mehta", category: "General", priority: "Normal", date: "10 Nov" },
+      { id: 4, classId: "12A", title: "Physics Practical Record Submission", desc: "All Electrostatics and Optics lab records must be signed by 14 November.", teacher: "Rahul Mehta", category: "Important Notice", priority: "Important", date: "10 Nov" },
+      { id: 5, classId: "12A", title: "Computer Science Practical Assessment", desc: "Python File Handling & Functions assessment on 21 November.", teacher: "Rahul Mehta", category: "Examination", priority: "Important", date: "08 Nov" },
+    ];
+
+    const INITIAL_ASSIGNMENTS = [
+      { id: 1, classId: "5A", subject: "Mathematics", title: "Fractions Practice Worksheet", instructions: "Complete questions 1–15 from the fractions chapter.", teacher: "Priya Sharma", deadline: "12 Nov", completedBy: [] },
+      { id: 2, classId: "5A", subject: "Science", title: "Our Environment Project", instructions: "Prepare a short illustrated project about environmental conservation.", teacher: "Priya Sharma", deadline: "15 Nov", completedBy: [] },
+      { id: 3, classId: "5B", subject: "Mathematics", title: "Multiplication & Division Practice", instructions: "Solve the assigned worksheet questions.", teacher: "Rahul Mehta", deadline: "13 Nov", completedBy: [] },
+      { id: 4, classId: "12A", subject: "Physics", title: "Electrostatics Numerical Practice", instructions: "Solve numerical problems 1–20 from Chapter 1.", teacher: "Rahul Mehta", deadline: "14 Nov", completedBy: [] },
+      { id: 5, classId: "12A", subject: "Computer Science", title: "Python Programming Practical", instructions: "Write and execute programs using file handling and functions.", teacher: "Rahul Mehta", deadline: "19 Nov", completedBy: [] },
+    ];
+
+    const INITIAL_DOUBTS = [
+      { id: 1, classId: "5A", subject: "Mathematics", author: "Aarav Sharma", question: "Why does the denominator remain the same when adding like fractions?", reply: "Because the fractions represent parts of the same-sized whole. We add the number of parts, not the size of each part.", resolved: true },
+      { id: 2, classId: "5B", subject: "Science", author: "Ananya Verma", question: "Why do plants need sunlight for photosynthesis?", reply: "Sunlight provides the energy plants use to convert water and carbon dioxide into glucose.", resolved: true },
+      { id: 3, classId: "12A", subject: "Physics", author: "Rohan Kumar", question: "What is the physical significance of the electric field?", reply: "It represents the force experienced per unit positive test charge at a particular point in space.", resolved: true },
+    ];
+
+    function App() {
+      const [view, setView] = useState("landing"); // landing | login | app
+      const [user, setUser] = useState(null);
+      const [activeClass, setActiveClass] = useState("5A");
+      const [tab, setTab] = useState("overview"); // overview | notices | assignments | doubts
+      const [accessError, setAccessError] = useState("");
+
+      // Persistent State
+      const [notices, setNotices] = useState(() => JSON.parse(localStorage.getItem("cs_notices")) || INITIAL_NOTICES);
+      const [assignments, setAssignments] = useState(() => JSON.parse(localStorage.getItem("cs_assignments")) || INITIAL_ASSIGNMENTS);
+      const [doubts, setDoubts] = useState(() => JSON.parse(localStorage.getItem("cs_doubts")) || INITIAL_DOUBTS);
+
+      useEffect(() => localStorage.setItem("cs_notices", JSON.stringify(notices)), [notices]);
+      useEffect(() => localStorage.setItem("cs_assignments", JSON.stringify(assignments)), [assignments]);
+      useEffect(() => localStorage.setItem("cs_doubts", JSON.stringify(doubts)), [doubts]);
+
+      // Login Form State
+      const [loginId, setLoginId] = useState("");
+      const [loginPass, setLoginPass] = useState("");
+      const [showPass, setShowPass] = useState(false);
+      const [loginErr, setLoginErr] = useState("");
+
+      // Creation Form States
+      const [newNotice, setNewNotice] = useState({ title: "", desc: "", category: "Academic Update", priority: "Normal" });
+      const [newAssign, setNewAssign] = useState({ subject: "Mathematics", title: "", instructions: "", deadline: "25 Nov" });
+      const [newDoubt, setNewDoubt] = useState({ subject: "Mathematics", question: "" });
+      const [replyText, setReplyText] = useState({});
+
+      const handleLogin = (e) => {
+        e.preventDefault();
+        const found = ACCOUNTS.find(a => a.id === loginId.trim() && a.password === loginPass);
+        if (!found) {
+          setLoginErr("Invalid User ID or Password. Try password: demo123");
+          return;
+        }
+        loginSuccess(found);
+      };
+
+      const loginSuccess = (account) => {
+        setUser(account);
+        setActiveClass(account.classes[0]);
+        setTab("overview");
+        setAccessError("");
+        setLoginErr("");
+        setView("app");
+      };
+
+      const switchClassroom = (cls) => {
+        if (!user.classes.includes(cls)) {
+          setAccessError(`HTTP 403 Access Denied: ${user.name} is not authorised to view Class ${cls}.`);
+          setTimeout(() => setAccessError(""), 4000);
+          return;
+        }
+        setAccessError("");
+        setActiveClass(cls);
+      };
+
+      const toggleComplete = (id) => {
+        setAssignments(assignments.map(a => {
+          if (a.id !== id) return a;
+          const done = a.completedBy.includes(user.id);
+          return { ...a, completedBy: done ? a.completedBy.filter(u => u !== user.id) : [...a.completedBy, user.id] };
+        }));
+      };
+
+      const addNotice = (e) => {
+        e.preventDefault();
+        if (!newNotice.title.trim()) return;
+        setNotices([{ id: Date.now(), classId: activeClass, ...newNotice, teacher: user.name, date: "Today" }, ...notices]);
+        setNewNotice({ title: "", desc: "", category: "Academic Update", priority: "Normal" });
+      };
+
+      const addAssignment = (e) => {
+        e.preventDefault();
+        if (!newAssign.title.trim()) return;
+        setAssignments([{ id: Date.now(), classId: activeClass, ...newAssign, teacher: user.name, completedBy: [] }, ...assignments]);
+        setNewAssign({ subject: "Mathematics", title: "", instructions: "", deadline: "25 Nov" });
+      };
+
+      const addDoubt = (e) => {
+        e.preventDefault();
+        if (!newDoubt.question.trim()) return;
+        setDoubts([{ id: Date.now(), classId: activeClass, ...newDoubt, author: user.name, reply: "", resolved: false }, ...doubts]);
+        setNewDoubt({ subject: "Mathematics", question: "" });
+      };
+
+      const submitReply = (id) => {
+        if (!replyText[id]?.trim()) return;
+        setDoubts(doubts.map(d => d.id === id ? { ...d, reply: replyText[id], resolved: true } : d));
+        setReplyText({ ...replyText, [id]: "" });
+      };
+
+      // --- LANDING PAGE ---
+      if (view === "landing") {
+        return (
+          <div className="min-h-screen bg-slate-50 text-slate-900">
+            <nav className="bg-white border-b border-slate-200 px-6 py-4 flex justify-between items-center sticky top-0 z-10">
+              <div className="flex items-center gap-2 font-extrabold text-xl text-slate-900">
+                <span className="bg-indigo-600 text-white px-2.5 py-1 rounded-lg text-sm">CS</span> ClassSphere
+              </div>
+              <button onClick={() => setView("login")} className="bg-indigo-600 hover:bg-indigo-700 text-white px-5 py-2 rounded-lg font-semibold text-sm transition">
+                Login / Demo Access
+              </button>
+            </nav>
+
+            <header className="max-w-5xl mx-auto px-6 py-20 text-center">
+              <span className="inline-block bg-indigo-50 text-indigo-700 border border-indigo-200 px-3 py-1 rounded-full text-xs font-bold mb-4">
+                PROTOTYPE v0 • ONE SCHOOL. EVERY CLASSROOM.
+              </span>
+              <h1 className="text-4xl md:text-6xl font-extrabold text-slate-900 tracking-tight mb-6">
+                Every Classroom. <span className="text-indigo-600">Connected.</span>
+              </h1>
+              <p className="text-lg text-slate-600 max-w-2xl mx-auto mb-8">
+                One organised space for school announcements, assignments, and academic discussions. Built to replace cluttered WhatsApp groups.
+              </p>
+              <div className="flex flex-wrap justify-center gap-4 mb-12">
+                <button onClick={() => setView("login")} className="bg-indigo-600 hover:bg-indigo-700 text-white px-7 py-3.5 rounded-xl font-bold shadow-lg shadow-indigo-200 transition">
+                  Explore Demo
+                </button>
+              </div>
+
+              <div className="bg-white border border-slate-200 rounded-2xl p-6 max-w-3xl mx-auto shadow-sm">
+                <p className="text-xs font-bold uppercase tracking-wider text-slate-400 mb-3">1-Click Instant Prototype Preview</p>
+                <div className="flex flex-wrap justify-center gap-2">
+                  {ACCOUNTS.map(acc => (
+                    <button key={acc.id} onClick={() => loginSuccess(acc)} className="px-3 py-2 text-xs font-semibold rounded-lg bg-slate-100 hover:bg-indigo-50 hover:text-indigo-700 border border-slate-200 transition">
+                      {acc.name} ({acc.label})
+                    </button>
+                  ))}
+                </div>
+              </div>
+            </header>
+          </div>
+        );
+      }
+
+      // --- LOGIN PAGE ---
+      if (view === "login") {
+        return (
+          <div className="min-h-screen bg-slate-900 flex items-center justify-center p-4">
+            <div className="bg-white rounded-2xl max-w-md w-full p-8 shadow-2xl">
+              <div className="flex justify-between items-center mb-6">
+                <h2 className="text-2xl font-extrabold text-slate-900">ClassSphere Login</h2>
+                <button onClick={() => setView("landing")} className="text-xs font-semibold text-indigo-600 hover:underline">Back to Home</button>
+              </div>
+
+              <form onSubmit={handleLogin} className="space-y-4">
+                <div>
+                  <label className="block text-xs font-bold text-slate-600 mb-1">User ID</label>
+                  <input value={loginId} onChange={e => setLoginId(e.target.value)} placeholder="e.g. student5a or teacher" className="w-full border border-slate-300 rounded-lg px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500" required />
+                </div>
+                <div>
+                  <label className="block text-xs font-bold text-slate-600 mb-1">Password</label>
+                  <div className="relative">
+                    <input type={showPass ? "text" : "password"} value={loginPass} onChange={e => setLoginPass(e.target.value)} placeholder="••••••••" className="w-full border border-slate-300 rounded-lg px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500" required />
+                    <button type="button" onClick={() => setShowPass(!showPass)} className="absolute right-3 top-2.5 text-xs font-semibold text-slate-500">
+                      {showPass ? "Hide" : "Show"}
+                    </button>
+                  </div>
+                </div>
+                {loginErr && <p className="text-xs text-red-600 font-semibold">{loginErr}</p>}
+                <button type="submit" className="w-full bg-indigo-600 hover:bg-indigo-700 text-white font-bold py-2.5 rounded-lg transition">Sign In</button>
+              </form>
+
+              <div className="mt-6 pt-5 border-t border-slate-200">
+                <p className="text-xs font-bold text-slate-500 uppercase mb-2">Demo Access (Password: demo123)</p>
+                <div className="space-y-1.5">
+                  {ACCOUNTS.map(acc => (
+                    <button key={acc.id} onClick={() => { setLoginId(acc.id); setLoginPass(acc.password); }} className="w-full text-left px-3 py-2 rounded-lg bg-slate-50 hover:bg-indigo-50 border border-slate-200 text-xs flex justify-between">
+                      <span className="font-bold text-slate-800">{acc.name}</span>
+                      <span className="text-slate-500">{acc.id} • {acc.label}</span>
+                    </button>
+                  ))}
+                </div>
+              </div>
+            </div>
+          </div>
+        );
+      }
+
+      // --- DASHBOARD (FILTERED BY ACTIVE CLASS) ---
+      const classNotices = notices.filter(n => n.classId === activeClass);
+      const classAssignments = assignments.filter(a => a.classId === activeClass);
+      const classDoubts = doubts.filter(d => d.classId === activeClass);
+
+      return (
+        <div className="min-h-screen flex flex-col md:flex-row bg-slate-50">
+          {/* Sidebar */}
+          <aside className="bg-slate-900 text-white w-full md:w-64 p-5 flex flex-col justify-between">
+            <div>
+              <div className="flex items-center justify-between mb-8">
+                <span className="font-extrabold text-lg tracking-tight">ClassSphere</span>
+                <span className="text-[10px] bg-indigo-600 px-2 py-0.5 rounded font-bold uppercase">{user.role}</span>
+              </div>
+
+              <p className="text-[11px] uppercase tracking-wider text-slate-400 font-bold mb-2">Classrooms</p>
+              <div className="flex md:flex-col gap-2 mb-6">
+                {ALL_CLASSES.map(cls => {
+                  const allowed = user.classes.includes(cls);
+                  return (
+                    <button key={cls} onClick={() => switchClassroom(cls)} className={`px-3 py-2 rounded-lg text-sm font-semibold flex justify-between items-center transition ${activeClass === cls ? "bg-indigo-600 text-white" : allowed ? "bg-slate-800 text-slate-200 hover:bg-slate-700" : "bg-slate-800/40 text-slate-500"}`}>
+                      <span>Class {cls}</span>
+                      {!allowed && <span className="text-xs">🔒</span>}
+                    </button>
+                  );
+                })}
+              </div>
+
+              <p className="text-[11px] uppercase tracking-wider text-slate-400 font-bold mb-2">Menu</p>
+              <nav className="flex md:flex-col gap-1 overflow-x-auto">
+                {[
+                  { id: "overview", label: "Overview" },
+                  { id: "notices", label: `Notices (${classNotices.length})` },
+                  { id: "assignments", label: `Assignments (${classAssignments.length})` },
+                  { id: "doubts", label: `Doubt Forum (${classDoubts.length})` },
+                ].map(item => (
+                  <button key={item.id} onClick={() => setTab(item.id)} className={`text-left px-3 py-2 rounded-lg text-sm font-medium whitespace-nowrap ${tab === item.id ? "bg-white/10 text-white font-bold" : "text-slate-300 hover:bg-white/5"}`}>
+                    {item.label}
+                  </button>
+                ))}
+              </nav>
+            </div>
+
+            <div className="mt-6 pt-4 border-t border-slate-800">
+              <p className="text-sm font-bold">{user.name}</p>
+              <p className="text-xs text-slate-400 mb-3">{user.label}</p>
+              <button onClick={() => { setUser(null); setView("landing"); }} className="w-full bg-slate-800 hover:bg-red-600 text-xs font-bold py-2 rounded-lg transition">Logout</button>
+            </div>
+          </aside>
+
+          {/* Main Content */}
+          <main className="flex-1 p-6 md:p-8 max-w-5xl">
+            {accessError && (
+              <div className="mb-5 bg-red-50 border border-red-300 text-red-700 px-4 py-3 rounded-xl text-sm font-bold">
+                {accessError}
+              </div>
+            )}
+
+            <div className="mb-6">
+              <h1 className="text-2xl font-extrabold text-slate-900">Class {activeClass} — {tab.charAt(0).toUpperCase() + tab.slice(1)}</h1>
+              <p className="text-sm text-slate-500">Welcome back, {user.name}. Prototype data is saved locally in your browser.</p>
+            </div>
+
+            {tab === "overview" && (
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                <div onClick={() => setTab("notices")} className="bg-white p-5 rounded-2xl border border-slate-200 shadow-sm cursor-pointer hover:border-indigo-400 transition">
+                  <p className="text-xs font-bold text-slate-400 uppercase">Class Notices</p>
+                  <p className="text-3xl font-extrabold text-slate-900 mt-1">{classNotices.length}</p>
+                  <p className="text-xs text-indigo-600 font-semibold mt-2">View Notice Board →</p>
+                </div>
+                <div onClick={() => setTab("assignments")} className="bg-white p-5 rounded-2xl border border-slate-200 shadow-sm cursor-pointer hover:border-indigo-400 transition">
+                  <p className="text-xs font-bold text-slate-400 uppercase">Assignments</p>
+                  <p className="text-3xl font-extrabold text-slate-900 mt-1">{classAssignments.length}</p>
+                  <p className="text-xs text-indigo-600 font-semibold mt-2">Open Homework →</p>
+                </div>
+                <div onClick={() => setTab("doubts")} className="bg-white p-5 rounded-2xl border border-slate-200 shadow-sm cursor-pointer hover:border-indigo-400 transition">
+                  <p className="text-xs font-bold text-slate-400 uppercase">Doubt Discussions</p>
+                  <p className="text-3xl font-extrabold text-slate-900 mt-1">{classDoubts.length}</p>
+                  <p className="text-xs text-indigo-600 font-semibold mt-2">Open Forum →</p>
+                </div>
+              </div>
+            )}
+
+            {tab === "notices" && (
+              <div className="space-y-4">
+                {user.role === "teacher" && (
+                  <form onSubmit={addNotice} className="bg-white p-5 rounded-2xl border border-indigo-200 space-y-3">
+                    <h3 className="font-bold text-sm text-indigo-700">Publish New Notice to Class {activeClass}</h3>
+                    <input value={newNotice.title} onChange={e => setNewNotice({...newNotice, title: e.target.value})} placeholder="Notice Title" className="w-full border rounded-lg px-3 py-2 text-sm" required />
+                    <textarea value={newNotice.desc} onChange={e => setNewNotice({...newNotice, desc: e.target.value})} placeholder="Details..." className="w-full border rounded-lg px-3 py-2 text-sm" rows="2" required />
+                    <button type="submit" className="bg-indigo-600 text-white px-4 py-2 rounded-lg text-xs font-bold">Publish Notice</button>
+                  </form>
+                )}
+                {classNotices.map(n => (
+                  <div key={n.id} className="bg-white p-5 rounded-2xl border border-slate-200 shadow-sm">
+                    <div className="flex justify-between items-start mb-1">
+                      <h3 className="font-bold text-slate-900">{n.title}</h3>
+                      <span className={`text-xs font-bold px-2.5 py-0.5 rounded-full ${n.priority === "Important" ? "bg-red-100 text-red-700" : "bg-slate-100 text-slate-600"}`}>{n.category}</span>
+                    </div>
+                    <p className="text-sm text-slate-600 mb-2">{n.desc}</p>
+                    <p className="text-xs text-slate-400">Posted by {n.teacher} • {n.date}</p>
+                  </div>
+                ))}
+              </div>
+            )}
+
+            {tab === "assignments" && (
+              <div className="space-y-4">
+                {user.role === "teacher" && (
+                  <form onSubmit={addAssignment} className="bg-white p-5 rounded-2xl border border-indigo-200 space-y-3">
+                    <h3 className="font-bold text-sm text-indigo-700">Create Assignment for Class {activeClass}</h3>
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                      <input value={newAssign.title} onChange={e => setNewAssign({...newAssign, title: e.target.value})} placeholder="Assignment Title" className="border rounded-lg px-3 py-2 text-sm" required />
+                      <input value={newAssign.subject} onChange={e => setNewAssign({...newAssign, subject: e.target.value})} placeholder="Subject" className="border rounded-lg px-3 py-2 text-sm" required />
+                    </div>
+                    <textarea value={newAssign.instructions} onChange={e => setNewAssign({...newAssign, instructions: e.target.value})} placeholder="Instructions..." className="w-full border rounded-lg px-3 py-2 text-sm" rows="2" required />
+                    <button type="submit" className="bg-indigo-600 text-white px-4 py-2 rounded-lg text-xs font-bold">Publish Assignment</button>
+                  </form>
+                )}
+                {classAssignments.map(a => {
+                  const isDone = a.completedBy.includes(user.id);
+                  return (
+                    <div key={a.id} className="bg-white p-5 rounded-2xl border border-slate-200 shadow-sm flex flex-col md:flex-row justify-between gap-4">
+                      <div>
+                        <span className="text-xs font-bold text-indigo-600 uppercase">{a.subject}</span>
+                        <h3 className="font-bold text-slate-900">{a.title}</h3>
+                        <p className="text-sm text-slate-600 mt-1">{a.instructions}</p>
+                        <p className="text-xs text-slate-400 mt-2">Teacher: {a.teacher} • Due: {a.deadline}</p>
+                      </div>
+                      {user.role === "student" && (
+                        <button onClick={() => toggleComplete(a.id)} className={`self-start px-4 py-2 rounded-lg text-xs font-bold transition ${isDone ? "bg-emerald-100 text-emerald-700" : "bg-slate-900 text-white hover:bg-indigo-600"}`}>
+                          {isDone ? "✓ Completed" : "Mark as Done"}
+                        </button>
+                      )}
+                    </div>
+                  );
+                })}
+              </div>
+            )}
+
+            {tab === "doubts" && (
+              <div className="space-y-4">
+                {user.role === "student" && (
+                  <form onSubmit={addDoubt} className="bg-white p-5 rounded-2xl border border-indigo-200 space-y-3">
+                    <h3 className="font-bold text-sm text-indigo-700">Ask a Doubt in Class {activeClass}</h3>
+                    <input value={newDoubt.subject} onChange={e => setNewDoubt({...newDoubt, subject: e.target.value})} placeholder="Subject" className="w-full border rounded-lg px-3 py-2 text-sm" required />
+                    <textarea value={newDoubt.question} onChange={e => setNewDoubt({...newDoubt, question: e.target.value})} placeholder="Type your question..." className="w-full border rounded-lg px-3 py-2 text-sm" rows="2" required />
+                    <button type="submit" className="bg-indigo-600 text-white px-4 py-2 rounded-lg text-xs font-bold">Post Doubt</button>
+                  </form>
+                )}
+                {classDoubts.map(d => (
+                  <div key={d.id} className="bg-white p-5 rounded-2xl border border-slate-200 shadow-sm space-y-3">
+                    <div className="flex justify-between">
+                      <span className="text-xs font-bold text-indigo-600">{d.subject} • Asked by {d.author}</span>
+                      <span className={`text-xs font-bold px-2 py-0.5 rounded-full ${d.resolved ? "bg-emerald-100 text-emerald-700" : "bg-amber-100 text-amber-700"}`}>{d.resolved ? "Resolved" : "Pending"}</span>
+                    </div>
+                    <p className="font-bold text-slate-900">{d.question}</p>
+                    {d.reply ? (
+                      <div className="bg-slate-50 border-l-4 border-indigo-500 p-3 text-sm text-slate-700">
+                        <span className="font-bold text-indigo-700">Teacher Reply: </span>{d.reply}
+                      </div>
+                    ) : user.role === "teacher" && (
+                      <div className="flex gap-2">
+                        <input value={replyText[d.id] || ""} onChange={e => setReplyText({...replyText, [d.id]: e.target.value})} placeholder="Write your answer..." className="flex-1 border rounded-lg px-3 py-1.5 text-sm" />
+                        <button onClick={() => submitReply(d.id)} className="bg-indigo-600 text-white px-4 py-1.5 rounded-lg text-xs font-bold">Reply</button>
+                      </div>
+                    )}
+                  </div>
+                ))}
+              </div>
+            )}
+          </main>
+        </div>
+      );
+    }
+
+    ReactDOM.createRoot(document.getElementById("root")).render(<App />);
+  </script>
+</body>
+</html>
