@@ -1,0 +1,979 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>ClassSphere — One School. Every Classroom. One Connected Platform.</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script crossorigin src="https://unpkg.com/react@18/umd/react.production.min.js"></script>
+  <script crossorigin src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js"></script>
+  <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
+  <style>
+    @import url('https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap');
+    body {
+      font-family: 'Plus Jakarta Sans', -apple-system, BlinkMacSystemFont, sans-serif;
+      background-color: #f8fafc;
+      color: #0f172a;
+    }
+    @keyframes fadeSlide {
+      from { opacity: 0; transform: translateY(8px); }
+      to { opacity: 1; transform: translateY(0); }
+    }
+    .animate-in { animation: fadeSlide 0.28s ease-out forwards; }
+  </style>
+</head>
+<body>
+  <div id="root"></div>
+
+  <script type="text/babel">
+    const { useState, useEffect, useCallback } = React;
+
+    const ALL_CLASSES = ['5A', '5B', '12A'];
+    const DEMO_ACCOUNTS = [
+      { id: 'student5a', name: 'Aarav Sharma', role: 'student', label: 'Class 5A Student' },
+      { id: 'student5b', name: 'Ananya Verma', role: 'student', label: 'Class 5B Student' },
+      { id: 'student12a', name: 'Rohan Kumar', role: 'student', label: 'Class 12A Student' },
+      { id: 'teacher5a', name: 'Priya Sharma', role: 'teacher', label: 'Class Teacher (5A)' },
+      { id: 'teacher', name: 'Rahul Mehta', role: 'teacher', label: 'Subject Teacher (5B, 12A)' },
+    ];
+
+    // Minimal clean SVG icons (zero external icon runtime errors)
+    const Icon = ({ name, className = 'w-4 h-4' }) => {
+      const paths = {
+        home: <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M3 12l2-2m0 0l7-7 7 7M5 10v10a1 1 0 001 1h3m10-11l2 2m-2-2v10a1 1 0 01-1 1h-3m-6 0a1 1 0 001-1v-4a1 1 0 011-1h2a1 1 0 011 1v4a1 1 0 001 1m-6 0h6" />,
+        bell: <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M15 17h5l-1.405-1.405A2.032 2.032 0 0118 14.158V11a6.002 6.002 0 00-4-5.659V5a2 2 0 10-4 0v.341C7.67 6.165 6 8.388 6 11v3.159c0 .538-.214 1.055-.595 1.436L4 17h5m6 0v1a3 3 0 11-6 0v-1m6 0H9" />,
+        book: <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 6.253v13m0-13C10.832 5.477 9.246 5 7.5 5S4.168 5.477 3 6.253v13C4.168 18.477 5.754 18 7.5 18s3.332.477 4.5 1.253m0-13C13.168 5.477 14.754 5 16.5 5c1.747 0 3.332.477 4.5 1.253v13C19.832 18.477 18.247 18 16.5 18c-1.746 0-3.332.477-4.5 1.253" />,
+        chat: <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M8 10h.01M12 10h.01M16 10h.01M9 16H5a2 2 0 01-2-2V6a2 2 0 012-2h14a2 2 0 012 2v8a2 2 0 01-2 2h-5l-5 5v-5z" />,
+        lock: <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z" />,
+        shield: <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z" />,
+        users: <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0z" />,
+        check: <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M5 13l4 4L19 7" />,
+        logout: <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1" />,
+        eye: <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z" />,
+        trash: <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />,
+      };
+      return (
+        <svg className={className} fill="none" viewBox="0 0 24 24" stroke="currentColor">
+          {paths[name]}
+        </svg>
+      );
+    };
+
+    // API helper
+    async function apiFetch(url, options = {}, token = null) {
+      const headers = { 'Content-Type': 'application/json', ...(options.headers || {}) };
+      if (token) headers['Authorization'] = `Bearer ${token}`;
+      const res = await fetch(url, { ...options, headers });
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok) {
+        const err = new Error(data.error || `Request failed (${res.status})`);
+        err.status = res.status;
+        throw err;
+      }
+      return data;
+    }
+
+    function App() {
+      const [view, setView] = useState('landing'); // landing | auth | app
+      const [authMode, setAuthMode] = useState('login'); // login | register
+      const [token, setToken] = useState(() => sessionStorage.getItem('cs_token') || '');
+      const [user, setUser] = useState(null);
+      const [activeClass, setActiveClass] = useState('5A');
+      const [tab, setTab] = useState('overview'); // overview | notices | assignments | doubts | people
+
+      // Server data state
+      const [stats, setStats] = useState(null);
+      const [classData, setClassData] = useState({ notices: [], assignments: [], doubts: [], roster: { students: [], teachers: [] } });
+      const [loading, setLoading] = useState(false);
+      const [toast, setToast] = useState(null);
+      const [rbacAlert, setRbacAlert] = useState('');
+
+      // Auth forms
+      const [loginId, setLoginId] = useState('');
+      const [loginPass, setLoginPass] = useState('');
+      const [showPass, setShowPass] = useState(false);
+      const [authErr, setAuthErr] = useState('');
+      const [regForm, setRegForm] = useState({ name: '', userId: '', email: '', password: '', role: 'student', assignedClass: '5A' });
+
+      // Search & Filters
+      const [searchQ, setSearchQ] = useState('');
+      const [catFilter, setCatFilter] = useState('All');
+
+      // Creation forms
+      const [newNotice, setNewNotice] = useState({ title: '', desc: '', category: 'Academic Update', priority: 'Normal' });
+      const [newAssign, setNewAssign] = useState({ subject: 'Mathematics', title: '', instructions: '', deadline: '28 Nov', maxMarks: 20 });
+      const [newDoubt, setNewDoubt] = useState({ subject: 'Mathematics', question: '' });
+      const [replyMap, setReplyMap] = useState({});
+
+      const showToast = (msg, type = 'success') => {
+        setToast({ msg, type });
+        setTimeout(() => setToast(null), 3500);
+      };
+
+      // Fetch public stats for Landing page
+      useEffect(() => {
+        apiFetch('/api/stats').then(setStats).catch(() => {});
+      }, [view]);
+
+      // Restore session if token exists
+      useEffect(() => {
+        if (!token) return;
+        apiFetch('/api/auth/me', {}, token)
+          .then(res => {
+            setUser(res.user);
+            setActiveClass(res.user.classes[0]);
+            setView('app');
+          })
+          .catch(() => {
+            sessionStorage.removeItem('cs_token');
+            setToken('');
+          });
+      }, []);
+
+      // Load active classroom data from real backend
+      const loadClassData = useCallback(async (cls, activeToken) => {
+        if (!activeToken || !cls) return;
+        setLoading(true);
+        try {
+          const data = await apiFetch(`/api/classes/${cls}/dashboard`, {}, activeToken);
+          setClassData(data);
+          setRbacAlert('');
+        } catch (err) {
+          if (err.status === 403) {
+            setRbacAlert(err.message);
+            setTimeout(() => setRbacAlert(''), 5000);
+          } else {
+            showToast(err.message, 'error');
+          }
+        } finally {
+          setLoading(false);
+        }
+      }, []);
+
+      useEffect(() => {
+        if (view === 'app' && token && activeClass) {
+          loadClassData(activeClass, token);
+        }
+      }, [view, token, activeClass, loadClassData]);
+
+      const completeAuth = (res) => {
+        sessionStorage.setItem('cs_token', res.token);
+        setToken(res.token);
+        setUser(res.user);
+        setActiveClass(res.user.classes[0]);
+        setTab('overview');
+        setAuthErr('');
+        setView('app');
+        showToast(`Welcome, ${res.user.name}! Connected to live backend.`);
+      };
+
+      const handleLogin = async (e) => {
+        e.preventDefault();
+        setAuthErr('');
+        try {
+          const res = await apiFetch('/api/auth/login', {
+            method: 'POST',
+            body: JSON.stringify({ userId: loginId, password: loginPass })
+          });
+          completeAuth(res);
+        } catch (err) {
+          setAuthErr(err.message);
+        }
+      };
+
+      const quickDemoLogin = async (demoId) => {
+        try {
+          const res = await apiFetch('/api/auth/login', {
+            method: 'POST',
+            body: JSON.stringify({ userId: demoId, password: 'demo123' })
+          });
+          completeAuth(res);
+        } catch (err) {
+          showToast(err.message, 'error');
+        }
+      };
+
+      const handleRegister = async (e) => {
+        e.preventDefault();
+        setAuthErr('');
+        try {
+          const res = await apiFetch('/api/auth/register', {
+            method: 'POST',
+            body: JSON.stringify(regForm)
+          });
+          completeAuth(res);
+        } catch (err) {
+          setAuthErr(err.message);
+        }
+      };
+
+      const handleLogout = async () => {
+        try { await apiFetch('/api/auth/logout', { method: 'POST' }, token); } catch (_) {}
+        sessionStorage.removeItem('cs_token');
+        setToken('');
+        setUser(null);
+        setView('landing');
+        showToast('Signed out safely.');
+      };
+
+      // Clicking ANY classroom triggers a real backend API call to prove server-side RBAC!
+      const handleClassSwitch = async (cls) => {
+        if (user.classes.includes(cls)) {
+          setActiveClass(cls);
+          setRbacAlert('');
+        } else {
+          // Intentionally call the protected API so the SERVER blocks it with real HTTP 403
+          try {
+            await apiFetch(`/api/classes/${cls}/dashboard`, {}, token);
+          } catch (err) {
+            setRbacAlert(err.message);
+            setTimeout(() => setRbacAlert(''), 5000);
+          }
+        }
+      };
+
+      // CRUD Actions
+      const publishNotice = async (e) => {
+        e.preventDefault();
+        try {
+          await apiFetch(`/api/classes/${activeClass}/notices`, {
+            method: 'POST',
+            body: JSON.stringify(newNotice)
+          }, token);
+          setNewNotice({ title: '', desc: '', category: 'Academic Update', priority: 'Normal' });
+          showToast(`Notice published to Class ${activeClass}`);
+          loadClassData(activeClass, token);
+        } catch (err) { showToast(err.message, 'error'); }
+      };
+
+      const deleteNotice = async (id) => {
+        try {
+          await apiFetch(`/api/classes/${activeClass}/notices/${id}`, { method: 'DELETE' }, token);
+          showToast('Notice removed.');
+          loadClassData(activeClass, token);
+        } catch (err) { showToast(err.message, 'error'); }
+      };
+
+      const publishAssignment = async (e) => {
+        e.preventDefault();
+        try {
+          await apiFetch(`/api/classes/${activeClass}/assignments`, {
+            method: 'POST',
+            body: JSON.stringify(newAssign)
+          }, token);
+          setNewAssign({ subject: 'Mathematics', title: '', instructions: '', deadline: '28 Nov', maxMarks: 20 });
+          showToast(`Assignment published to Class ${activeClass}`);
+          loadClassData(activeClass, token);
+        } catch (err) { showToast(err.message, 'error'); }
+      };
+
+      const deleteAssignment = async (id) => {
+        try {
+          await apiFetch(`/api/classes/${activeClass}/assignments/${id}`, { method: 'DELETE' }, token);
+          showToast('Assignment deleted.');
+          loadClassData(activeClass, token);
+        } catch (err) { showToast(err.message, 'error'); }
+      };
+
+      const toggleAssignment = async (id) => {
+        try {
+          await apiFetch(`/api/classes/${activeClass}/assignments/${id}/toggle`, { method: 'POST' }, token);
+          loadClassData(activeClass, token);
+          showToast('Submission status updated on server!');
+        } catch (err) { showToast(err.message, 'error'); }
+      };
+
+      const postDoubt = async (e) => {
+        e.preventDefault();
+        try {
+          await apiFetch(`/api/classes/${activeClass}/doubts`, {
+            method: 'POST',
+            body: JSON.stringify(newDoubt)
+          }, token);
+          setNewDoubt({ subject: 'Mathematics', question: '' });
+          showToast('Doubt submitted to your teacher!');
+          loadClassData(activeClass, token);
+        } catch (err) { showToast(err.message, 'error'); }
+      };
+
+      const replyDoubt = async (id) => {
+        const text = replyMap[id];
+        if (!text?.trim()) return;
+        try {
+          await apiFetch(`/api/classes/${activeClass}/doubts/${id}/reply`, {
+            method: 'POST',
+            body: JSON.stringify({ reply: text })
+          }, token);
+          setReplyMap({ ...replyMap, [id]: '' });
+          showToast('Reply published and doubt marked resolved!');
+          loadClassData(activeClass, token);
+        } catch (err) { showToast(err.message, 'error'); }
+      };
+
+      // Toast overlay
+      const ToastUI = toast ? (
+        <div className={`fixed bottom-5 right-5 z-50 px-4 py-3 rounded-xl shadow-lg text-sm font-semibold text-white flex items-center gap-2 animate-in ${toast.type === 'error' ? 'bg-rose-600' : 'bg-slate-900'}`}>
+          <span className={`w-2 h-2 rounded-full ${toast.type === 'error' ? 'bg-white' : 'bg-emerald-400'}`}></span>
+          {toast.msg}
+        </div>
+      ) : null;
+
+      // ==========================================
+      // LANDING PAGE
+      // ==========================================
+      if (view === 'landing') {
+        return (
+          <div className="min-h-screen bg-gradient-to-b from-slate-50 via-white to-indigo-50/40">
+            {ToastUI}
+            <nav className="sticky top-0 z-20 bg-white/85 backdrop-blur-md border-b border-slate-200/80">
+              <div className="max-w-6xl mx-auto px-5 py-3.5 flex items-center justify-between">
+                <div className="flex items-center gap-2.5">
+                  <div className="w-9 h-9 rounded-xl bg-gradient-to-br from-slate-900 to-indigo-600 text-white font-extrabold flex items-center justify-center shadow-sm">CS</div>
+                  <div>
+                    <div className="font-extrabold text-slate-900 leading-none text-lg">ClassSphere</div>
+                    <div className="text-[11px] text-slate-500 font-medium">School Academic Platform</div>
+                  </div>
+                </div>
+                <div className="flex items-center gap-2.5">
+                  <button onClick={() => { setAuthMode('login'); setView('auth'); }} className="px-4 py-2 text-sm font-semibold text-slate-700 hover:text-indigo-600 transition">Sign In</button>
+                  <button onClick={() => { setAuthMode('register'); setView('auth'); }} className="px-4 py-2 text-sm font-bold text-white bg-indigo-600 hover:bg-indigo-700 rounded-xl shadow-sm transition">Get Started</button>
+                </div>
+              </div>
+            </nav>
+
+            <section className="max-w-6xl mx-auto px-5 pt-14 pb-16 grid lg:grid-cols-12 gap-10 items-center">
+              <div className="lg:col-span-7 animate-in">
+                <div className="inline-flex items-center gap-2 px-3 py-1.5 rounded-full bg-indigo-50 border border-indigo-200 text-indigo-700 text-xs font-bold mb-5">
+                  <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse"></span>
+                  LIVE FULL-STACK API • SERVER-SIDE CLASS ISOLATION
+                </div>
+                <h1 className="text-4xl sm:text-5xl font-extrabold text-slate-900 tracking-tight leading-[1.12] mb-5">
+                  One School. Every Classroom. <span className="text-transparent bg-clip-text bg-gradient-to-r from-indigo-600 to-sky-500">One Connected Platform.</span>
+                </h1>
+                <p className="text-base sm:text-lg text-slate-600 leading-relaxed mb-7 max-w-2xl">
+                  Replace noisy, fragmented WhatsApp groups with dedicated classroom workspaces. Real backend authentication, isolated class notice boards, live homework submissions, and structured doubt resolution.
+                </p>
+
+                <div className="flex flex-wrap gap-3 mb-8">
+                  <button onClick={() => { setAuthMode('login'); setView('auth'); }} className="px-6 py-3.5 bg-slate-900 hover:bg-indigo-600 text-white font-bold rounded-xl shadow-md transition">
+                    Open Login Portal →
+                  </button>
+                  <button onClick={() => { setAuthMode('register'); setView('auth'); }} className="px-6 py-3.5 bg-white hover:bg-slate-50 text-slate-800 border border-slate-300 font-bold rounded-xl transition">
+                    Create New Account
+                  </button>
+                </div>
+
+                {/* Live Server Stats */}
+                {stats && (
+                  <div className="grid grid-cols-3 gap-3 max-w-md">
+                    <div className="bg-white border border-slate-200 rounded-xl p-3">
+                      <div className="text-xl font-extrabold text-slate-900">{stats.totalUsers}</div>
+                      <div className="text-xs text-slate-500 font-medium">Registered Users</div>
+                    </div>
+                    <div className="bg-white border border-slate-200 rounded-xl p-3">
+                      <div className="text-xl font-extrabold text-indigo-600">{stats.classes.length}</div>
+                      <div className="text-xs text-slate-500 font-medium">Isolated Classes</div>
+                    </div>
+                    <div className="bg-white border border-slate-200 rounded-xl p-3">
+                      <div className="text-xl font-extrabold text-emerald-600">{stats.totalAssignments + stats.totalNotices}</div>
+                      <div className="text-xs text-slate-500 font-medium">Live Records</div>
+                    </div>
+                  </div>
+                )}
+              </div>
+
+              {/* Instant Demo Access Card */}
+              <div className="lg:col-span-5 animate-in">
+                <div className="bg-white rounded-2xl border border-slate-200 shadow-xl shadow-slate-200/60 p-6">
+                  <div className="flex items-center justify-between mb-4">
+                    <div>
+                      <h3 className="font-extrabold text-slate-900">1-Click Instant Demo</h3>
+                      <p className="text-xs text-slate-500">Authenticates directly with the Node.js backend</p>
+                    </div>
+                    <span className="px-2.5 py-1 rounded-lg bg-emerald-50 text-emerald-700 text-[11px] font-bold">API LIVE</span>
+                  </div>
+                  <div className="space-y-2.5">
+                    {DEMO_ACCOUNTS.map(acc => (
+                      <button
+                        key={acc.id}
+                        onClick={() => quickDemoLogin(acc.id)}
+                        className="w-full p-3 rounded-xl border border-slate-200 hover:border-indigo-400 hover:bg-indigo-50/50 flex items-center justify-between transition group text-left"
+                      >
+                        <div>
+                          <div className="font-bold text-sm text-slate-900 group-hover:text-indigo-700">{acc.name}</div>
+                          <div className="text-xs text-slate-500">{acc.label} • ID: <code className="text-slate-700 font-semibold">{acc.id}</code></div>
+                        </div>
+                        <span className={`px-2.5 py-1 rounded-lg text-[11px] font-bold uppercase ${acc.role === 'teacher' ? 'bg-indigo-100 text-indigo-700' : 'bg-sky-100 text-sky-700'}`}>
+                          {acc.role}
+                        </span>
+                      </button>
+                    ))}
+                  </div>
+                  <p className="text-[11px] text-slate-400 mt-4 text-center">Demo password for manual login: <strong className="text-slate-600">demo123</strong></p>
+                </div>
+              </div>
+            </section>
+
+            {/* 3 Core Pillars */}
+            <section className="max-w-6xl mx-auto px-5 pb-16">
+              <div className="grid md:grid-cols-3 gap-5">
+                {[
+                  { title: 'True Server-Side RBAC', desc: 'Class 5A, 5B, and 12A are isolated in the backend API. Unauthorized requests return real HTTP 403 errors.', icon: 'shield', tone: 'bg-indigo-50 text-indigo-600' },
+                  { title: 'Synced Notices & Homework', desc: 'Teachers publish assignments once; every student in that class sees it live and tracks their completion.', icon: 'book', tone: 'bg-sky-50 text-sky-600' },
+                  { title: 'Structured Doubt Forum', desc: 'Questions stay organized by subject with teacher responses instead of vanishing in group chat history.', icon: 'chat', tone: 'bg-emerald-50 text-emerald-600' }
+                ].map((f, i) => (
+                  <div key={i} className="bg-white p-6 rounded-2xl border border-slate-200 shadow-sm">
+                    <div className={`w-10 h-10 rounded-xl ${f.tone} flex items-center justify-center mb-4`}>
+                      <Icon name={f.icon} className="w-5 h-5" />
+                    </div>
+                    <h3 className="font-extrabold text-slate-900 mb-1.5">{f.title}</h3>
+                    <p className="text-sm text-slate-600 leading-relaxed">{f.desc}</p>
+                  </div>
+                ))}
+              </div>
+            </section>
+          </div>
+        );
+      }
+
+      // ==========================================
+      // AUTHENTICATION PAGE (LOGIN & REGISTER)
+      // ==========================================
+      if (view === 'auth') {
+        return (
+          <div className="min-h-screen bg-slate-900 flex items-center justify-center p-4">
+            {ToastUI}
+            <div className="bg-white rounded-2xl max-w-md w-full p-7 shadow-2xl animate-in">
+              <div className="flex items-center justify-between mb-6">
+                <div className="flex items-center gap-2">
+                  <div className="w-8 h-8 rounded-lg bg-indigo-600 text-white font-extrabold text-sm flex items-center justify-center">CS</div>
+                  <span className="font-extrabold text-lg text-slate-900">ClassSphere</span>
+                </div>
+                <button onClick={() => setView('landing')} className="text-xs font-semibold text-slate-500 hover:text-indigo-600">← Back</button>
+              </div>
+
+              <div className="grid grid-cols-2 bg-slate-100 p-1 rounded-xl mb-5">
+                <button onClick={() => { setAuthMode('login'); setAuthErr(''); }} className={`py-2 text-xs font-bold rounded-lg transition ${authMode === 'login' ? 'bg-white text-slate-900 shadow-sm' : 'text-slate-500'}`}>Sign In</button>
+                <button onClick={() => { setAuthMode('register'); setAuthErr(''); }} className={`py-2 text-xs font-bold rounded-lg transition ${authMode === 'register' ? 'bg-white text-slate-900 shadow-sm' : 'text-slate-500'}`}>Create Account</button>
+              </div>
+
+              {authMode === 'login' ? (
+                <form onSubmit={handleLogin} className="space-y-4">
+                  <div>
+                    <label className="block text-xs font-bold text-slate-700 mb-1">User ID or Email</label>
+                    <input value={loginId} onChange={e => setLoginId(e.target.value)} placeholder="e.g. student5a or teacher" className="w-full border border-slate-300 rounded-xl px-3.5 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500" required />
+                  </div>
+                  <div>
+                    <label className="block text-xs font-bold text-slate-700 mb-1">Password</label>
+                    <div className="relative">
+                      <input type={showPass ? 'text' : 'password'} value={loginPass} onChange={e => setLoginPass(e.target.value)} placeholder="••••••••" className="w-full border border-slate-300 rounded-xl px-3.5 py-2.5 text-sm pr-12 focus:outline-none focus:ring-2 focus:ring-indigo-500" required />
+                      <button type="button" onClick={() => setShowPass(!showPass)} className="absolute right-3 top-2.5 text-xs font-bold text-slate-500 hover:text-indigo-600">{showPass ? 'Hide' : 'Show'}</button>
+                    </div>
+                  </div>
+                  {authErr && <div className="p-3 rounded-xl bg-rose-50 border border-rose-200 text-rose-700 text-xs font-semibold">{authErr}</div>}
+                  <button type="submit" className="w-full bg-indigo-600 hover:bg-indigo-700 text-white font-bold py-3 rounded-xl shadow-sm transition">Sign In to Workspace</button>
+
+                  <div className="pt-4 border-t border-slate-200">
+                    <p className="text-[11px] font-bold uppercase text-slate-400 mb-2">Quick Fill Demo Account (Password: demo123)</p>
+                    <div className="grid grid-cols-2 gap-1.5">
+                      {DEMO_ACCOUNTS.map(acc => (
+                        <button key={acc.id} type="button" onClick={() => { setLoginId(acc.id); setLoginPass('demo123'); }} className="text-left px-2.5 py-2 rounded-lg bg-slate-50 hover:bg-indigo-50 border border-slate-200 text-[11px]">
+                          <div className="font-bold text-slate-800 truncate">{acc.name}</div>
+                          <div className="text-slate-500 truncate">{acc.id}</div>
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+                </form>
+              ) : (
+                <form onSubmit={handleRegister} className="space-y-3.5">
+                  <div>
+                    <label className="block text-xs font-bold text-slate-700 mb-1">Full Name</label>
+                    <input value={regForm.name} onChange={e => setRegForm({ ...regForm, name: e.target.value })} placeholder="e.g. Kabir Singh" className="w-full border border-slate-300 rounded-xl px-3.5 py-2 text-sm" required />
+                  </div>
+                  <div className="grid grid-cols-2 gap-2.5">
+                    <div>
+                      <label className="block text-xs font-bold text-slate-700 mb-1">User ID</label>
+                      <input value={regForm.userId} onChange={e => setRegForm({ ...regForm, userId: e.target.value })} placeholder="kabir12a" className="w-full border border-slate-300 rounded-xl px-3 py-2 text-sm" required />
+                    </div>
+                    <div>
+                      <label className="block text-xs font-bold text-slate-700 mb-1">Role</label>
+                      <select value={regForm.role} onChange={e => setRegForm({ ...regForm, role: e.target.value })} className="w-full border border-slate-300 rounded-xl px-3 py-2 text-sm bg-white">
+                        <option value="student">Student</option>
+                        <option value="teacher">Teacher</option>
+                      </select>
+                    </div>
+                  </div>
+                  <div className="grid grid-cols-2 gap-2.5">
+                    <div>
+                      <label className="block text-xs font-bold text-slate-700 mb-1">Email</label>
+                      <input type="email" value={regForm.email} onChange={e => setRegForm({ ...regForm, email: e.target.value })} placeholder="name@school.edu" className="w-full border border-slate-300 rounded-xl px-3 py-2 text-sm" required />
+                    </div>
+                    <div>
+                      <label className="block text-xs font-bold text-slate-700 mb-1">Classroom</label>
+                      <select value={regForm.assignedClass} onChange={e => setRegForm({ ...regForm, assignedClass: e.target.value })} className="w-full border border-slate-300 rounded-xl px-3 py-2 text-sm bg-white">
+                        {ALL_CLASSES.map(c => <option key={c} value={c}>Class {c}</option>)}
+                      </select>
+                    </div>
+                  </div>
+                  <div>
+                    <label className="block text-xs font-bold text-slate-700 mb-1">Password (min 6 chars)</label>
+                    <input type={showPass ? 'text' : 'password'} value={regForm.password} onChange={e => setRegForm({ ...regForm, password: e.target.value })} placeholder="••••••••" className="w-full border border-slate-300 rounded-xl px-3.5 py-2 text-sm" required />
+                  </div>
+                  {authErr && <div className="p-3 rounded-xl bg-rose-50 border border-rose-200 text-rose-700 text-xs font-semibold">{authErr}</div>}
+                  <button type="submit" className="w-full bg-indigo-600 hover:bg-indigo-700 text-white font-bold py-3 rounded-xl shadow-sm transition">Create Account & Enter</button>
+                </form>
+              )}
+            </div>
+          </div>
+        );
+      }
+
+      // ==========================================
+      // AUTHENTICATED DASHBOARD WORKSPACE
+      // ==========================================
+      const { notices, assignments, doubts, roster } = classData;
+      const completedCount = user?.role === 'student'
+        ? assignments.filter(a => a.completedBy.includes(user.id)).length
+        : assignments.reduce((sum, a) => sum + a.completedBy.length, 0);
+      const completionPct = user?.role === 'student' && assignments.length > 0
+        ? Math.round((completedCount / assignments.length) * 100)
+        : 0;
+      const pendingDoubts = doubts.filter(d => !d.resolved).length;
+
+      const filteredNotices = notices.filter(n => {
+        const matchCat = catFilter === 'All' || n.category === catFilter;
+        const matchQ = !searchQ || (n.title + n.desc).toLowerCase().includes(searchQ.toLowerCase());
+        return matchCat && matchQ;
+      });
+
+      const filteredAssignments = assignments.filter(a =>
+        !searchQ || (a.title + a.subject + a.instructions).toLowerCase().includes(searchQ.toLowerCase())
+      );
+
+      return (
+        <div className="min-h-screen flex flex-col md:flex-row bg-slate-50">
+          {ToastUI}
+
+          {/* Sidebar */}
+          <aside className="bg-slate-900 text-white w-full md:w-64 md:min-h-screen p-5 flex flex-col justify-between shrink-0">
+            <div>
+              <div className="flex items-center justify-between mb-6">
+                <div className="flex items-center gap-2.5">
+                  <div className="w-8 h-8 rounded-lg bg-indigo-600 font-extrabold text-sm flex items-center justify-center">CS</div>
+                  <span className="font-extrabold text-lg tracking-tight">ClassSphere</span>
+                </div>
+                <span className="text-[10px] px-2 py-0.5 rounded-md bg-indigo-500/20 text-indigo-300 border border-indigo-500/30 font-bold uppercase">{user.role}</span>
+              </div>
+
+              <div className="mb-6">
+                <div className="flex items-center justify-between mb-2">
+                  <span className="text-[11px] font-bold uppercase tracking-wider text-slate-400">Classrooms (RBAC)</span>
+                  <span className="text-[10px] text-emerald-400 font-semibold">● API Guard</span>
+                </div>
+                <div className="flex md:flex-col gap-2">
+                  {ALL_CLASSES.map(cls => {
+                    const allowed = user.classes.includes(cls);
+                    const active = activeClass === cls;
+                    return (
+                      <button
+                        key={cls}
+                        onClick={() => handleClassSwitch(cls)}
+                        className={`flex-1 md:flex-none px-3.5 py-2.5 rounded-xl text-sm font-bold flex items-center justify-between transition ${
+                          active
+                            ? 'bg-indigo-600 text-white shadow-md shadow-indigo-950/40'
+                            : allowed
+                              ? 'bg-slate-800 text-slate-200 hover:bg-slate-700'
+                              : 'bg-slate-800/40 text-slate-500 hover:bg-rose-950/40 hover:text-rose-300'
+                        }`}
+                      >
+                        <span>Class {cls}</span>
+                        {!allowed && <Icon name="lock" className="w-3.5 h-3.5" />}
+                      </button>
+                    );
+                  })}
+                </div>
+              </div>
+
+              <div className="mb-4">
+                <span className="block text-[11px] font-bold uppercase tracking-wider text-slate-400 mb-2">Navigation</span>
+                <nav className="flex md:flex-col gap-1 overflow-x-auto pb-1">
+                  {[
+                    { id: 'overview', label: 'Overview', icon: 'home' },
+                    { id: 'notices', label: 'Notice Board', count: notices.length, icon: 'bell' },
+                    { id: 'assignments', label: 'Assignments', count: assignments.length, icon: 'book' },
+                    { id: 'doubts', label: 'Doubt Forum', count: pendingDoubts || null, icon: 'chat' },
+                    { id: 'people', label: 'Class Roster', count: roster.students.length, icon: 'users' },
+                  ].map(item => (
+                    <button
+                      key={item.id}
+                      onClick={() => { setTab(item.id); setSearchQ(''); setCatFilter('All'); }}
+                      className={`px-3 py-2.5 rounded-xl text-sm font-semibold flex items-center justify-between gap-2 whitespace-nowrap transition ${
+                        tab === item.id ? 'bg-white/10 text-white' : 'text-slate-400 hover:text-white hover:bg-white/5'
+                      }`}
+                    >
+                      <span className="flex items-center gap-2.5">
+                        <Icon name={item.icon} className="w-4 h-4" />
+                        {item.label}
+                      </span>
+                      {item.count != null && (
+                        <span className="text-[11px] px-2 py-0.5 rounded-full bg-slate-800 text-slate-300 font-bold">{item.count}</span>
+                      )}
+                    </button>
+                  ))}
+                </nav>
+              </div>
+            </div>
+
+            <div className="pt-4 border-t border-slate-800 mt-4">
+              <div className="flex items-center gap-3 mb-3">
+                <div className="w-9 h-9 rounded-full bg-gradient-to-br from-indigo-500 to-sky-500 flex items-center justify-center font-extrabold text-sm">
+                  {user.name.charAt(0)}
+                </div>
+                <div className="min-w-0">
+                  <div className="text-sm font-bold truncate">{user.name}</div>
+                  <div className="text-[11px] text-slate-400 truncate">{user.label}</div>
+                </div>
+              </div>
+              <button onClick={handleLogout} className="w-full py-2 rounded-xl bg-slate-800 hover:bg-rose-600 text-xs font-bold flex items-center justify-center gap-2 transition">
+                <Icon name="logout" className="w-3.5 h-3.5" /> Sign Out
+              </button>
+            </div>
+          </aside>
+
+          {/* Main Area */}
+          <main className="flex-1 p-5 md:p-8 max-w-5xl w-full mx-auto">
+            {rbacAlert && (
+              <div className="mb-5 p-4 rounded-2xl bg-rose-50 border border-rose-300 text-rose-800 text-sm font-bold flex items-center gap-3 animate-in">
+                <Icon name="shield" className="w-5 h-5 text-rose-600 shrink-0" />
+                <span>{rbacAlert}</span>
+              </div>
+            )}
+
+            {/* Header Bar */}
+            <header className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 mb-7">
+              <div>
+                <div className="flex items-center gap-2 mb-1">
+                  <span className="px-2.5 py-0.5 rounded-full bg-indigo-100 text-indigo-700 text-xs font-extrabold">Class {activeClass}</span>
+                  <span className="text-xs text-emerald-600 font-semibold flex items-center gap-1">
+                    <span className="w-1.5 h-1.5 rounded-full bg-emerald-500"></span> Synced with Server
+                  </span>
+                </div>
+                <h1 className="text-2xl font-extrabold text-slate-900">
+                  {tab === 'overview' ? `Welcome back, ${user.name.split(' ')[0]}` :
+                   tab === 'notices' ? 'Class Notice Board' :
+                   tab === 'assignments' ? 'Assignments & Homework' :
+                   tab === 'doubts' ? 'Academic Doubt Forum' : 'Classroom Directory'}
+                </h1>
+              </div>
+
+              {(tab === 'notices' || tab === 'assignments') && (
+                <input
+                  value={searchQ}
+                  onChange={e => setSearchQ(e.target.value)}
+                  placeholder="Search..."
+                  className="bg-white border border-slate-300 rounded-xl px-3.5 py-2 text-sm w-full sm:w-56 focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                />
+              )}
+            </header>
+
+            {loading ? (
+              <div className="grid sm:grid-cols-3 gap-4 animate-pulse">
+                {[1,2,3].map(i => <div key={i} className="h-28 bg-slate-200 rounded-2xl"></div>)}
+              </div>
+            ) : (
+              <div className="animate-in">
+                {/* OVERVIEW TAB */}
+                {tab === 'overview' && (
+                  <div className="space-y-6">
+                    <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+                      <div onClick={() => setTab('notices')} className="bg-white p-5 rounded-2xl border border-slate-200 hover:border-indigo-400 shadow-sm cursor-pointer transition">
+                        <div className="text-xs font-bold uppercase text-slate-400">Active Notices</div>
+                        <div className="text-3xl font-extrabold text-slate-900 mt-1">{notices.length}</div>
+                        <div className="text-xs font-semibold text-indigo-600 mt-2">Open Notice Board →</div>
+                      </div>
+                      <div onClick={() => setTab('assignments')} className="bg-white p-5 rounded-2xl border border-slate-200 hover:border-indigo-400 shadow-sm cursor-pointer transition">
+                        <div className="text-xs font-bold uppercase text-slate-400">{user.role === 'student' ? 'My Progress' : 'Total Assignments'}</div>
+                        <div className="text-3xl font-extrabold text-slate-900 mt-1">
+                          {user.role === 'student' ? `${completionPct}%` : assignments.length}
+                        </div>
+                        {user.role === 'student' ? (
+                          <div className="w-full h-2 bg-slate-100 rounded-full mt-2.5 overflow-hidden">
+                            <div className="h-full bg-emerald-500 rounded-full transition-all duration-300" style={{ width: `${completionPct}%` }}></div>
+                          </div>
+                        ) : (
+                          <div className="text-xs font-semibold text-emerald-600 mt-2">{completedCount} total student submissions</div>
+                        )}
+                      </div>
+                      <div onClick={() => setTab('doubts')} className="bg-white p-5 rounded-2xl border border-slate-200 hover:border-indigo-400 shadow-sm cursor-pointer transition">
+                        <div className="text-xs font-bold uppercase text-slate-400">Open Doubts</div>
+                        <div className="text-3xl font-extrabold text-slate-900 mt-1">{pendingDoubts}</div>
+                        <div className="text-xs font-semibold text-amber-600 mt-2">{doubts.length} total discussions →</div>
+                      </div>
+                    </div>
+
+                    <div className="grid lg:grid-cols-2 gap-5">
+                      <div className="bg-white rounded-2xl border border-slate-200 p-5 shadow-sm">
+                        <div className="flex justify-between items-center mb-4">
+                          <h3 className="font-extrabold text-slate-900">Latest Notices</h3>
+                          <button onClick={() => setTab('notices')} className="text-xs font-bold text-indigo-600 hover:underline">View all</button>
+                        </div>
+                        <div className="space-y-3">
+                          {notices.slice(0, 3).map(n => (
+                            <div key={n.id} className="p-3.5 rounded-xl bg-slate-50 border border-slate-100">
+                              <div className="flex justify-between items-start gap-2">
+                                <div className="font-bold text-sm text-slate-900">{n.title}</div>
+                                {n.priority === 'Important' && <span className="px-2 py-0.5 rounded-md bg-rose-100 text-rose-700 text-[10px] font-extrabold shrink-0">IMPORTANT</span>}
+                              </div>
+                              <p className="text-xs text-slate-600 mt-1 line-clamp-2">{n.desc}</p>
+                              <div className="text-[11px] text-slate-400 mt-1.5">{n.teacher} • {n.date}</div>
+                            </div>
+                          ))}
+                        </div>
+                      </div>
+
+                      <div className="bg-white rounded-2xl border border-slate-200 p-5 shadow-sm">
+                        <div className="flex justify-between items-center mb-4">
+                          <h3 className="font-extrabold text-slate-900">Upcoming Assignments</h3>
+                          <button onClick={() => setTab('assignments')} className="text-xs font-bold text-indigo-600 hover:underline">View all</button>
+                        </div>
+                        <div className="space-y-3">
+                          {assignments.slice(0, 3).map(a => {
+                            const done = a.completedBy.includes(user.id);
+                            return (
+                              <div key={a.id} className="p-3.5 rounded-xl bg-slate-50 border border-slate-100 flex justify-between items-center gap-3">
+                                <div>
+                                  <div className="text-[11px] font-extrabold text-indigo-600 uppercase">{a.subject}</div>
+                                  <div className="font-bold text-sm text-slate-900">{a.title}</div>
+                                  <div className="text-[11px] text-slate-500 mt-0.5">Due: {a.deadline} • {a.maxMarks} Marks</div>
+                                </div>
+                                {user.role === 'student' && (
+                                  <span className={`px-2.5 py-1 rounded-lg text-[11px] font-bold shrink-0 ${done ? 'bg-emerald-100 text-emerald-700' : 'bg-amber-100 text-amber-700'}`}>
+                                    {done ? 'Submitted' : 'Pending'}
+                                  </span>
+                                )}
+                              </div>
+                            );
+                          })}
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                )}
+
+                {/* NOTICES TAB */}
+                {tab === 'notices' && (
+                  <div className="space-y-5">
+                    {user.role === 'teacher' && (
+                      <form onSubmit={publishNotice} className="bg-white p-5 rounded-2xl border-2 border-indigo-100 shadow-sm space-y-3">
+                        <h3 className="font-extrabold text-sm text-indigo-700">Publish New Notice to Class {activeClass}</h3>
+                        <div className="grid sm:grid-cols-3 gap-3">
+                          <input value={newNotice.title} onChange={e => setNewNotice({ ...newNotice, title: e.target.value })} placeholder="Notice headline" className="sm:col-span-2 border border-slate-300 rounded-xl px-3.5 py-2 text-sm" required />
+                          <select value={newNotice.priority} onChange={e => setNewNotice({ ...newNotice, priority: e.target.value })} className="border border-slate-300 rounded-xl px-3 py-2 text-sm bg-white">
+                            <option value="Normal">Normal Priority</option>
+                            <option value="Important">Important Alert</option>
+                          </select>
+                        </div>
+                        <textarea value={newNotice.desc} onChange={e => setNewNotice({ ...newNotice, desc: e.target.value })} placeholder="Write full notice details..." rows="2" className="w-full border border-slate-300 rounded-xl px-3.5 py-2 text-sm" required />
+                        <div className="flex justify-between items-center">
+                          <select value={newNotice.category} onChange={e => setNewNotice({ ...newNotice, category: e.target.value })} className="border border-slate-300 rounded-xl px-3 py-1.5 text-xs font-semibold bg-white">
+                            <option>Academic Update</option>
+                            <option>Examination</option>
+                            <option>Important Notice</option>
+                            <option>General</option>
+                          </select>
+                          <button type="submit" className="bg-indigo-600 hover:bg-indigo-700 text-white px-5 py-2 rounded-xl text-xs font-bold transition">Publish to Class {activeClass}</button>
+                        </div>
+                      </form>
+                    )}
+
+                    <div className="flex gap-2 overflow-x-auto pb-1">
+                      {['All', 'Examination', 'Academic Update', 'Important Notice', 'General'].map(cat => (
+                        <button key={cat} onClick={() => setCatFilter(cat)} className={`px-3.5 py-1.5 rounded-full text-xs font-bold whitespace-nowrap transition ${catFilter === cat ? 'bg-slate-900 text-white' : 'bg-white border border-slate-200 text-slate-600 hover:bg-slate-100'}`}>
+                          {cat}
+                        </button>
+                      ))}
+                    </div>
+
+                    <div className="space-y-3">
+                      {filteredNotices.map(n => (
+                        <div key={n.id} className={`bg-white p-5 rounded-2xl border shadow-sm ${n.priority === 'Important' ? 'border-l-4 border-l-rose-500 border-slate-200' : 'border-slate-200'}`}>
+                          <div className="flex justify-between items-start gap-3">
+                            <div>
+                              <div className="flex items-center gap-2 mb-1">
+                                <span className="text-[11px] font-bold px-2.5 py-0.5 rounded-full bg-slate-100 text-slate-700">{n.category}</span>
+                                {n.priority === 'Important' && <span className="text-[11px] font-bold px-2.5 py-0.5 rounded-full bg-rose-100 text-rose-700">Important</span>}
+                              </div>
+                              <h3 className="font-extrabold text-slate-900 text-base">{n.title}</h3>
+                            </div>
+                            {user.role === 'teacher' && (
+                              <button onClick={() => deleteNotice(n.id)} className="text-slate-400 hover:text-rose-600 p-1" title="Delete notice">
+                                <Icon name="trash" className="w-4 h-4" />
+                              </button>
+                            )}
+                          </div>
+                          <p className="text-sm text-slate-600 mt-2 leading-relaxed">{n.desc}</p>
+                          <div className="text-xs text-slate-400 mt-3 font-medium">Posted by {n.teacher} • {n.date}</div>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                )}
+
+                {/* ASSIGNMENTS TAB */}
+                {tab === 'assignments' && (
+                  <div className="space-y-5">
+                    {user.role === 'teacher' && (
+                      <form onSubmit={publishAssignment} className="bg-white p-5 rounded-2xl border-2 border-indigo-100 shadow-sm space-y-3">
+                        <h3 className="font-extrabold text-sm text-indigo-700">Create Assignment for Class {activeClass}</h3>
+                        <div className="grid sm:grid-cols-3 gap-3">
+                          <input value={newAssign.title} onChange={e => setNewAssign({ ...newAssign, title: e.target.value })} placeholder="Assignment Title" className="border border-slate-300 rounded-xl px-3.5 py-2 text-sm" required />
+                          <input value={newAssign.subject} onChange={e => setNewAssign({ ...newAssign, subject: e.target.value })} placeholder="Subject" className="border border-slate-300 rounded-xl px-3.5 py-2 text-sm" required />
+                          <input value={newAssign.deadline} onChange={e => setNewAssign({ ...newAssign, deadline: e.target.value })} placeholder="Deadline (e.g. 30 Nov)" className="border border-slate-300 rounded-xl px-3.5 py-2 text-sm" required />
+                        </div>
+                        <textarea value={newAssign.instructions} onChange={e => setNewAssign({ ...newAssign, instructions: e.target.value })} placeholder="Detailed homework instructions..." rows="2" className="w-full border border-slate-300 rounded-xl px-3.5 py-2 text-sm" required />
+                        <div className="flex justify-end">
+                          <button type="submit" className="bg-indigo-600 hover:bg-indigo-700 text-white px-5 py-2 rounded-xl text-xs font-bold transition">Publish Assignment</button>
+                        </div>
+                      </form>
+                    )}
+
+                    <div className="space-y-3">
+                      {filteredAssignments.map(a => {
+                        const isDone = a.completedBy.includes(user.id);
+                        return (
+                          <div key={a.id} className="bg-white p-5 rounded-2xl border border-slate-200 shadow-sm flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+                            <div className="flex-1">
+                              <div className="flex items-center gap-2 mb-1">
+                                <span className="text-xs font-extrabold text-indigo-600 uppercase">{a.subject}</span>
+                                <span className="text-xs text-slate-300">•</span>
+                                <span className="text-xs font-semibold text-slate-500">Due {a.deadline}</span>
+                                <span className="text-xs text-slate-300">•</span>
+                                <span className="text-xs font-semibold text-slate-500">{a.maxMarks} Marks</span>
+                              </div>
+                              <h3 className="font-extrabold text-slate-900">{a.title}</h3>
+                              <p className="text-sm text-slate-600 mt-1">{a.instructions}</p>
+                              <div className="text-xs text-slate-400 mt-2">Assigned by {a.teacher}</div>
+                            </div>
+
+                            <div className="flex items-center gap-2 shrink-0">
+                              {user.role === 'student' ? (
+                                <button
+                                  onClick={() => toggleAssignment(a.id)}
+                                  className={`px-4 py-2.5 rounded-xl text-xs font-bold flex items-center gap-1.5 transition ${
+                                    isDone ? 'bg-emerald-100 text-emerald-700 hover:bg-emerald-200' : 'bg-slate-900 text-white hover:bg-indigo-600'
+                                  }`}
+                                >
+                                  {isDone && <Icon name="check" className="w-3.5 h-3.5" />}
+                                  {isDone ? 'Submitted' : 'Mark Completed'}
+                                </button>
+                              ) : (
+                                <>
+                                  <span className="px-3 py-1.5 rounded-xl bg-sky-50 text-sky-700 text-xs font-bold">
+                                    {a.completedBy.length} / {roster.students.length} Done
+                                  </span>
+                                  <button onClick={() => deleteAssignment(a.id)} className="text-slate-400 hover:text-rose-600 p-1.5" title="Delete">
+                                    <Icon name="trash" className="w-4 h-4" />
+                                  </button>
+                                </>
+                              )}
+                            </div>
+                          </div>
+                        );
+                      })}
+                    </div>
+                  </div>
+                )}
+
+                {/* DOUBTS TAB */}
+                {tab === 'doubts' && (
+                  <div className="space-y-5">
+                    {user.role === 'student' && (
+                      <form onSubmit={postDoubt} className="bg-white p-5 rounded-2xl border-2 border-indigo-100 shadow-sm space-y-3">
+                        <h3 className="font-extrabold text-sm text-indigo-700">Ask an Academic Doubt in Class {activeClass}</h3>
+                        <input value={newDoubt.subject} onChange={e => setNewDoubt({ ...newDoubt, subject: e.target.value })} placeholder="Subject (e.g. Physics, Maths)" className="w-full sm:w-64 border border-slate-300 rounded-xl px-3.5 py-2 text-sm" required />
+                        <textarea value={newDoubt.question} onChange={e => setNewDoubt({ ...newDoubt, question: e.target.value })} placeholder="Describe your question clearly..." rows="2" className="w-full border border-slate-300 rounded-xl px-3.5 py-2 text-sm" required />
+                        <button type="submit" className="bg-indigo-600 hover:bg-indigo-700 text-white px-5 py-2 rounded-xl text-xs font-bold transition">Post Question</button>
+                      </form>
+                    )}
+
+                    <div className="space-y-3">
+                      {doubts.map(d => (
+                        <div key={d.id} className="bg-white p-5 rounded-2xl border border-slate-200 shadow-sm space-y-3">
+                          <div className="flex justify-between items-center gap-2">
+                            <span className="text-xs font-bold text-indigo-600">{d.subject} • Asked by {d.author} ({d.createdAt})</span>
+                            <span className={`px-2.5 py-0.5 rounded-full text-[11px] font-bold ${d.resolved ? 'bg-emerald-100 text-emerald-700' : 'bg-amber-100 text-amber-700'}`}>
+                              {d.resolved ? 'Answered' : 'Pending Reply'}
+                            </span>
+                          </div>
+                          <p className="font-bold text-slate-900">{d.question}</p>
+
+                          {d.reply ? (
+                            <div className="p-3.5 rounded-xl bg-indigo-50/70 border-l-4 border-indigo-500 text-sm text-slate-700">
+                              <div className="text-xs font-extrabold text-indigo-700 mb-1">Teacher Response ({d.repliedBy || 'Faculty'}):</div>
+                              {d.reply}
+                            </div>
+                          ) : user.role === 'teacher' ? (
+                            <div className="flex gap-2">
+                              <input
+                                value={replyMap[d.id] || ''}
+                                onChange={e => setReplyMap({ ...replyMap, [d.id]: e.target.value })}
+                                placeholder="Write your explanation to resolve this doubt..."
+                                className="flex-1 border border-slate-300 rounded-xl px-3.5 py-2 text-sm"
+                              />
+                              <button onClick={() => replyDoubt(d.id)} className="bg-indigo-600 hover:bg-indigo-700 text-white px-4 py-2 rounded-xl text-xs font-bold transition">Send Reply</button>
+                            </div>
+                          ) : (
+                            <div className="text-xs text-slate-400 italic">Waiting for subject teacher to respond...</div>
+                          )}
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                )}
+
+                {/* PEOPLE / ROSTER TAB */}
+                {tab === 'people' && (
+                  <div className="grid md:grid-cols-2 gap-5">
+                    <div className="bg-white p-5 rounded-2xl border border-slate-200 shadow-sm">
+                      <h3 className="font-extrabold text-slate-900 mb-3">Assigned Teachers ({roster.teachers.length})</h3>
+                      <div className="space-y-2.5">
+                        {roster.teachers.map(t => (
+                          <div key={t.id} className="p-3 rounded-xl bg-slate-50 flex items-center justify-between">
+                            <div>
+                              <div className="font-bold text-sm text-slate-900">{t.name}</div>
+                              <div className="text-xs text-slate-500">{t.email}</div>
+                            </div>
+                            <span className="px-2.5 py-0.5 rounded-md bg-indigo-100 text-indigo-700 text-[11px] font-bold">Faculty</span>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+
+                    <div className="bg-white p-5 rounded-2xl border border-slate-200 shadow-sm">
+                      <h3 className="font-extrabold text-slate-900 mb-3">Enrolled Students ({roster.students.length})</h3>
+                      <div className="space-y-2.5">
+                        {roster.students.map(s => (
+                          <div key={s.id} className="p-3 rounded-xl bg-slate-50 flex items-center justify-between">
+                            <div>
+                              <div className="font-bold text-sm text-slate-900">{s.name}</div>
+                              <div className="text-xs text-slate-500">ID: {s.id} • {s.email}</div>
+                            </div>
+                            <span className="px-2.5 py-0.5 rounded-md bg-sky-100 text-sky-700 text-[11px] font-bold">Class {activeClass}</span>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  </div>
+                )}
+              </div>
+            )}
+          </main>
+        </div>
+      );
+    }
+
+    ReactDOM.createRoot(document.getElementById('root')).render(<App />);
+  </script>
+</body>
+</html>
